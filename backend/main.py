@@ -12,7 +12,7 @@ if str(backend_dir) not in sys.path:
     sys.path.insert(0, str(backend_dir))
 
 from app.routes import auth, tasks
-from app.utils.database import connect_to_mongo, close_mongo_connection
+from app.utils.database import connect_to_mongo, close_mongo_connection, get_database
 
 # Load environment variables
 load_dotenv()
@@ -77,7 +77,16 @@ async def root():
 
 @app.get("/health")
 async def health_check():
-    return {"status": "healthy"}
+    try:
+        db = await get_database()
+        if db is not None:
+            # Test database connection
+            await db.command('ping')
+            return {"status": "healthy", "database": "connected"}
+        else:
+            return {"status": "unhealthy", "database": "disconnected"}
+    except Exception as e:
+        return {"status": "unhealthy", "database": "error", "error": str(e)}
 
 if __name__ == "__main__":
     import uvicorn

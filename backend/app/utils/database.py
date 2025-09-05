@@ -19,13 +19,32 @@ database = Database()
 
 async def get_database():
     """Get database connection, ensuring it's established"""
-    if database.database is None:
-        await connect_to_mongo()
-    return database.database
+    try:
+        if database.database is None or database.client is None:
+            await connect_to_mongo()
+        
+        # Test the connection to ensure it's still alive
+        if database.client:
+            await database.client.admin.command('ping')
+        
+        return database.database
+    except Exception as e:
+        logger.error(f"Error in get_database: {e}")
+        # Try to reconnect
+        try:
+            await connect_to_mongo()
+            return database.database
+        except Exception as reconnect_error:
+            logger.error(f"Failed to reconnect: {reconnect_error}")
+            raise
 
 async def connect_to_mongo():
     """Create database connection"""
     try:
+        # Close existing connection if any
+        if database.client:
+            database.client.close()
+            
         # Get MongoDB configuration from environment variables
         mongo_uri = os.getenv("MONGODB_URI")
         username = os.getenv("MONGODB_USERNAME")
@@ -51,7 +70,14 @@ async def connect_to_mongo():
         mongo_uri = mongo_uri.replace("<password>", encoded_password)
         
         logger.info("Attempting to connect to MongoDB...")
-        database.client = AsyncIOMotorClient(mongo_uri, serverSelectionTimeoutMS=5000)
+        database.client = AsyncIOMotorClient(
+            mongo_uri, 
+            serverSelectionTimeoutMS=5000,
+            connectTimeoutMS=5000,
+            socketTimeoutMS=5000,
+            maxPoolSize=1,  # Limit pool size for serverless
+            retryWrites=True
+        )
         
         # Test the connection
         await database.client.admin.command('ping')

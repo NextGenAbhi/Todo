@@ -61,6 +61,12 @@ class AuthController:
         try:
             db = await get_database()
             
+            if db is None:
+                raise HTTPException(
+                    status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                    detail="Database connection not available"
+                )
+            
             # Find user by email
             user_doc = await db.users.find_one({"email": user_data.email})
             if not user_doc:
@@ -97,6 +103,12 @@ class AuthController:
         """Get user profile information"""
         try:
             db = await get_database()
+            
+            if db is None:
+                raise HTTPException(
+                    status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                    detail="Database connection not available"
+                )
             
             user_doc = await db.users.find_one({"email": email})
             if not user_doc:
