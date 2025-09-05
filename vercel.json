@@ -16,6 +16,9 @@
       "handle": "filesystem"
     },
     {
+      "handle": "filesystem"
+    },
+    {
       "src": "/(.*)",
       "dest": "/index.html"
     }
