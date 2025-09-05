@@ -17,12 +17,15 @@ const TodoApp = ({ onLogout }) => {
     loadTasks();
   }, []);
 
-  const loadTasks = () => {
+  const loadTasks = async () => {
     try {
-      const savedTasks = getTasks();
+      setIsLoading(true);
+      const savedTasks = await getTasks();
       setTasks(savedTasks);
     } catch (error) {
       console.error('Error loading tasks:', error);
+    } finally {
+      setIsLoading(false);
     }
   };
 
@@ -32,7 +35,7 @@ const TodoApp = ({ onLogout }) => {
 
     setIsLoading(true);
     try {
-      const task = addTask(newTask.trim());
+      const task = await addTask(newTask.trim());
       if (task) {
         setTasks(prev => [...prev, task]);
         setNewTask('');
@@ -44,11 +47,12 @@ const TodoApp = ({ onLogout }) => {
     }
   };
 
-  const handleToggleTask = (taskId) => {
+  const handleToggleTask = async (taskId) => {
     try {
-      if (toggleTask(taskId)) {
+      const updatedTask = await toggleTask(taskId);
+      if (updatedTask) {
         setTasks(prev => prev.map(task => 
-          task.id === taskId ? { ...task, completed: !task.completed } : task
+          task.id === taskId ? updatedTask : task
         ));
       }
     } catch (error) {
@@ -56,9 +60,9 @@ const TodoApp = ({ onLogout }) => {
     }
   };
 
-  const handleDeleteTask = (taskId) => {
+  const handleDeleteTask = async (taskId) => {
     try {
-      if (deleteTask(taskId)) {
+      if (await deleteTask(taskId)) {
         setTasks(prev => prev.filter(task => task.id !== taskId));
       }
     } catch (error) {
@@ -71,13 +75,14 @@ const TodoApp = ({ onLogout }) => {
     setEditText(task.text);
   };
 
-  const handleEditSave = (taskId) => {
+  const handleEditSave = async (taskId) => {
     if (!editText.trim()) return;
 
     try {
-      if (updateTask(taskId, { text: editText.trim() })) {
+      const updatedTask = await updateTask(taskId, { text: editText.trim() });
+      if (updatedTask) {
         setTasks(prev => prev.map(task => 
-          task.id === taskId ? { ...task, text: editText.trim() } : task
+          task.id === taskId ? updatedTask : task
         ));
         setEditingId(null);
         setEditText('');

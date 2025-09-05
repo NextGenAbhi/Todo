@@ -61,12 +61,12 @@ const AuthForm = ({ onAuthSuccess }) => {
       let success = false;
 
       if (isLogin) {
-        success = loginUser(formData.email, formData.password);
+        success = await loginUser(formData.email, formData.password);
         if (!success) {
           setError('Invalid email or password');
         }
       } else {
-        success = registerUser(formData.email, formData.password);
+        success = await registerUser(formData.email, formData.password);
         if (!success) {
           setError('Registration failed. Please try again.');
         }
@@ -76,7 +76,8 @@ const AuthForm = ({ onAuthSuccess }) => {
         onAuthSuccess();
       }
     } catch (error) {
-      setError('An unexpected error occurred. Please try again.');
+      console.error('Authentication error:', error);
+      setError(error.message || 'An unexpected error occurred. Please try again.');
     } finally {
       setIsLoading(false);
     }
