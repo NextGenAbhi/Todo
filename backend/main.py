@@ -20,10 +20,17 @@ load_dotenv()
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     # Startup
-    await connect_to_mongo()
+    try:
+        await connect_to_mongo()
+    except Exception as e:
+        print(f"Warning: Could not connect to MongoDB during startup: {e}")
+        # Don't fail the startup, let individual requests handle connection
     yield
     # Shutdown
-    await close_mongo_connection()
+    try:
+        await close_mongo_connection()
+    except Exception as e:
+        print(f"Warning: Error during MongoDB disconnection: {e}")
 
 app = FastAPI(
     title="Todo App API",

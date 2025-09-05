@@ -14,6 +14,12 @@ class AuthController:
         try:
             db = await get_database()
             
+            if db is None:
+                raise HTTPException(
+                    status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                    detail="Database connection not available"
+                )
+            
             # Check if user already exists
             existing_user = await db.users.find_one({"email": user_data.email})
             if existing_user:

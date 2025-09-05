@@ -18,6 +18,9 @@ class Database:
 database = Database()
 
 async def get_database():
+    """Get database connection, ensuring it's established"""
+    if database.database is None:
+        await connect_to_mongo()
     return database.database
 
 async def connect_to_mongo():
@@ -27,6 +30,10 @@ async def connect_to_mongo():
         mongo_uri = os.getenv("MONGODB_URI")
         username = os.getenv("MONGODB_USERNAME")
         password = os.getenv("MONGODB_PASSWORD")
+        
+        logger.info(f"Connecting with URI pattern: {mongo_uri[:20] if mongo_uri else 'None'}...")
+        logger.info(f"Username: {username}")
+        logger.info(f"Password configured: {'Yes' if password else 'No'}")
         
         if not mongo_uri:
             raise ValueError("MONGODB_URI environment variable is not set")
@@ -44,7 +51,7 @@ async def connect_to_mongo():
         mongo_uri = mongo_uri.replace("<password>", encoded_password)
         
         logger.info("Attempting to connect to MongoDB...")
-        database.client = AsyncIOMotorClient(mongo_uri)
+        database.client = AsyncIOMotorClient(mongo_uri, serverSelectionTimeoutMS=5000)
         
         # Test the connection
         await database.client.admin.command('ping')
