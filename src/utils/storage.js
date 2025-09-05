@@ -1,109 +1,70 @@
-import CryptoJS from 'crypto-js';
+import { tasksAPI } from './api.js';
 import { getCurrentUser } from './auth.js';
 
-// Get session key for encryption
-const getSessionKey = () => {
-  return sessionStorage.getItem('todo_session_key');
-};
-
-// Encrypt data before storing
-const encryptData = (data) => {
-  const sessionKey = getSessionKey();
-  if (!sessionKey) return null;
-  return CryptoJS.AES.encrypt(JSON.stringify(data), sessionKey).toString();
-};
-
-// Decrypt data after retrieving
-const decryptData = (encryptedData) => {
+// Get tasks for current user (now from backend API)
+export const getTasks = async () => {
   try {
-    const sessionKey = getSessionKey();
-    if (!sessionKey) return null;
-    const bytes = CryptoJS.AES.decrypt(encryptedData, sessionKey);
-    return JSON.parse(bytes.toString(CryptoJS.enc.Utf8));
+    const currentUser = getCurrentUser();
+    if (!currentUser) return [];
+    
+    const tasks = await tasksAPI.getTasks();
+    return tasks || [];
   } catch (error) {
+    console.error('Error loading tasks:', error);
+    return [];
+  }
+};
+
+// Save tasks (not needed anymore as backend handles persistence)
+export const saveTasks = (tasks) => {
+  // This function is kept for compatibility but not used with backend
+  console.warn('saveTasks is deprecated with backend integration');
+  return true;
+};
+
+// Add a new task (now via backend API)
+export const addTask = async (taskText) => {
+  try {
+    const currentUser = getCurrentUser();
+    if (!currentUser) return null;
+    
+    const newTask = await tasksAPI.createTask(taskText);
+    return newTask;
+  } catch (error) {
+    console.error('Error adding task:', error);
     return null;
   }
 };
 
-// Get tasks for current user
-export const getTasks = () => {
-  const currentUser = getCurrentUser();
-  if (!currentUser) return [];
-  
-  const encryptedData = localStorage.getItem('todo_tasks_data');
-  if (!encryptedData) return [];
-  
-  const allTasks = decryptData(encryptedData);
-  if (!allTasks || !allTasks[currentUser]) return [];
-  
-  return allTasks[currentUser];
+// Update a task (now via backend API)
+export const updateTask = async (taskId, updates) => {
+  try {
+    const updatedTask = await tasksAPI.updateTask(taskId, updates);
+    return updatedTask;
+  } catch (error) {
+    console.error('Error updating task:', error);
+    return false;
+  }
 };
 
-// Save tasks for current user
-export const saveTasks = (tasks) => {
-  const currentUser = getCurrentUser();
-  if (!currentUser) return false;
-  
-  // Get existing data
-  const encryptedData = localStorage.getItem('todo_tasks_data');
-  let allTasks = {};
-  
-  if (encryptedData) {
-    allTasks = decryptData(encryptedData) || {};
-  }
-  
-  // Update tasks for current user
-  allTasks[currentUser] = tasks;
-  
-  // Encrypt and save
-  const newEncryptedData = encryptData(allTasks);
-  if (newEncryptedData) {
-    localStorage.setItem('todo_tasks_data', newEncryptedData);
+// Delete a task (now via backend API)
+export const deleteTask = async (taskId) => {
+  try {
+    await tasksAPI.deleteTask(taskId);
     return true;
+  } catch (error) {
+    console.error('Error deleting task:', error);
+    return false;
   }
-  
-  return false;
 };
 
-// Add a new task
-export const addTask = (taskText) => {
-  const currentTasks = getTasks();
-  const newTask = {
-    id: Date.now().toString() + Math.random().toString(36).substr(2, 9),
-    text: taskText,
-    completed: false,
-    createdAt: new Date().toISOString(),
-    updatedAt: new Date().toISOString()
-  };
-  
-  const updatedTasks = [...currentTasks, newTask];
-  return saveTasks(updatedTasks) ? newTask : null;
-};
-
-// Update a task
-export const updateTask = (taskId, updates) => {
-  const currentTasks = getTasks();
-  const updatedTasks = currentTasks.map(task => 
-    task.id === taskId 
-      ? { ...task, ...updates, updatedAt: new Date().toISOString() }
-      : task
-  );
-  
-  return saveTasks(updatedTasks);
-};
-
-// Delete a task
-export const deleteTask = (taskId) => {
-  const currentTasks = getTasks();
-  const updatedTasks = currentTasks.filter(task => task.id !== taskId);
-  return saveTasks(updatedTasks);
-};
-
-// Toggle task completion
-export const toggleTask = (taskId) => {
-  const currentTasks = getTasks();
-  const task = currentTasks.find(t => t.id === taskId);
-  if (!task) return false;
-  
-  return updateTask(taskId, { completed: !task.completed });
+// Toggle task completion (now via backend API)
+export const toggleTask = async (taskId) => {
+  try {
+    const updatedTask = await tasksAPI.toggleTask(taskId);
+    return updatedTask;
+  } catch (error) {
+    console.error('Error toggling task:', error);
+    return false;
+  }
 };
