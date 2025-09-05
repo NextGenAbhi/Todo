@@ -32,13 +32,22 @@ origins = [
     "http://localhost:8001",  # Local backend
     "http://127.0.0.1:5173",  # Alternative local frontend
     "http://127.0.0.1:8001",  # Alternative local backend
-    os.getenv("FRONTEND_URL", "https://todo-nu-lemon.vercel.app"),  # Production frontend
-    # Add your actual Vercel deployment URL here if different
 ]
+
+# Add Vercel domains dynamically
+frontend_url = os.getenv("FRONTEND_URL")
+if frontend_url:
+    origins.append(frontend_url)
+
+# Allow all Vercel deployment URLs
+origins.extend([
+    "https://*.vercel.app",
+    "https://todo-nu-lemon.vercel.app",
+])
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=origins,
+    allow_origins=["*"] if os.getenv("DEBUG", "False").lower() == "true" else origins,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -46,7 +55,7 @@ app.add_middleware(
 
 # Include routers
 app.include_router(auth.router, prefix="/api/auth", tags=["authentication"])
-app.include_router(tasks.router, prefix="/api/tags", tags=["tasks"])
+app.include_router(tasks.router, prefix="/api/tasks", tags=["tasks"])
 
 @app.get("/")
 async def root():
