@@ -26,9 +26,19 @@ app = FastAPI(
 )
 
 # CORS middleware
+# Define allowed origins for different environments
+origins = [
+    "http://localhost:5173",  # Local Vite dev server
+    "http://localhost:8001",  # Local backend
+    "http://127.0.0.1:5173",  # Alternative local frontend
+    "http://127.0.0.1:8001",  # Alternative local backend
+    os.getenv("FRONTEND_URL", "https://todo-nu-lemon.vercel.app"),  # Production frontend
+    # Add your actual Vercel deployment URL here if different
+]
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=[os.getenv("FRONTEND_URL", "https://todo-nu-lemon.vercel.app/")],
+    allow_origins=origins,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
