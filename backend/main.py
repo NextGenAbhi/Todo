@@ -28,7 +28,7 @@ app = FastAPI(
 # CORS middleware
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=[os.getenv("FRONTEND_URL", "http://localhost:5174")],
+    allow_origins=[os.getenv("FRONTEND_URL", "https://todo-nu-lemon.vercel.app/")],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
