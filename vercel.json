@@ -1,16 +1,22 @@
 {
   "version": 2,
-  "buildCommand": "npm run build",
-  "outputDirectory": "dist",
-  "functions": {
-    "backend/main.py": {
-      "runtime": "@vercel/python@3.9.16"
+  "builds": [
+    {
+      "src": "package.json",
+      "use": "@vercel/static-build",
+      "config": {
+        "distDir": "dist"
+      }
+    },
+    {
+      "src": "backend/main.py",
+      "use": "@vercel/python"
     }
-  },
+  ],
   "routes": [
     {
       "src": "/api/(.*)",
-      "dest": "/backend/main.py"
+      "dest": "backend/main.py"
     },
     {
       "handle": "filesystem"
