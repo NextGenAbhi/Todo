@@ -3,6 +3,13 @@ from fastapi.middleware.cors import CORSMiddleware
 from contextlib import asynccontextmanager
 from dotenv import load_dotenv
 import os
+import sys
+from pathlib import Path
+
+# Add the backend directory to Python path for Vercel
+backend_dir = Path(__file__).parent
+if str(backend_dir) not in sys.path:
+    sys.path.insert(0, str(backend_dir))
 
 from app.routes import auth, tasks
 from app.utils.database import connect_to_mongo, close_mongo_connection
