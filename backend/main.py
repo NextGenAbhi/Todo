@@ -3,9 +3,16 @@ from fastapi.middleware.cors import CORSMiddleware
 from contextlib import asynccontextmanager
 from dotenv import load_dotenv
 import os
+import sys
+from pathlib import Path
+
+# Add the backend directory to Python path for Vercel
+backend_dir = Path(__file__).parent
+if str(backend_dir) not in sys.path:
+    sys.path.insert(0, str(backend_dir))
 
 from app.routes import auth, tasks
-from app.utils.database import connect_to_mongo, close_mongo_connection
+from app.utils.database import connect_to_mongo, close_mongo_connection, get_database
 
 # Load environment variables
 load_dotenv()
@@ -13,10 +20,17 @@ load_dotenv()
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     # Startup
-    await connect_to_mongo()
+    try:
+        await connect_to_mongo()
+    except Exception as e:
+        print(f"Warning: Could not connect to MongoDB during startup: {e}")
+        # Don't fail the startup, let individual requests handle connection
     yield
     # Shutdown
-    await close_mongo_connection()
+    try:
+        await close_mongo_connection()
+    except Exception as e:
+        print(f"Warning: Error during MongoDB disconnection: {e}")
 
 app = FastAPI(
     title="Todo App API",
@@ -63,7 +77,16 @@ async def root():
 
 @app.get("/health")
 async def health_check():
-    return {"status": "healthy"}
+    try:
+        db = await get_database()
+        if db is not None:
+            # Test database connection
+            await db.command('ping')
+            return {"status": "healthy", "database": "connected"}
+        else:
+            return {"status": "unhealthy", "database": "disconnected"}
+    except Exception as e:
+        return {"status": "unhealthy", "database": "error", "error": str(e)}
 
 if __name__ == "__main__":
     import uvicorn
