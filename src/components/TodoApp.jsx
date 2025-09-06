@@ -14,7 +14,12 @@ const TodoApp = ({ onLogout }) => {
 
   // Load tasks on component mount
   useEffect(() => {
-    loadTasks();
+    // Add a small delay to ensure tokens are properly set after authentication
+    const timer = setTimeout(() => {
+      loadTasks();
+    }, 100);
+    
+    return () => clearTimeout(timer);
   }, []);
 
   const loadTasks = async () => {
@@ -24,6 +29,11 @@ const TodoApp = ({ onLogout }) => {
       setTasks(savedTasks);
     } catch (error) {
       console.error('Error loading tasks:', error);
+      // If authentication error, trigger logout
+      if (error.message.includes('Not authenticated') || error.message.includes('Authentication failed')) {
+        alert('Your session has expired. Please log in again.');
+        onLogout();
+      }
     } finally {
       setIsLoading(false);
     }
@@ -116,6 +126,7 @@ const TodoApp = ({ onLogout }) => {
     }
   });
 
+  console.log('Filtered Tasks:', filteredTasks);
   const stats = {
     total: tasks.length,
     completed: tasks.filter(task => task.completed).length,
@@ -268,7 +279,7 @@ const TodoApp = ({ onLogout }) => {
                         <span className="task-text">{task.text}</span>
                         <div className="task-meta">
                           <span className="task-date">
-                            {new Date(task.createdAt).toLocaleDateString()}
+                            {new Date(task.created_at).toLocaleDateString()}
                           </span>
                         </div>
                       </>

@@ -6,20 +6,66 @@ const getAuthToken = () => {
   return sessionStorage.getItem('todo_auth_token');
 };
 
+// Get refresh token from sessionStorage
+const getRefreshToken = () => {
+  return sessionStorage.getItem('todo_refresh_token');
+};
+
 // Set auth token in sessionStorage
 const setAuthToken = (token) => {
   sessionStorage.setItem('todo_auth_token', token);
 };
 
+// Set refresh token in sessionStorage
+const setRefreshToken = (token) => {
+  sessionStorage.setItem('todo_refresh_token', token);
+};
+
 // Remove auth token from sessionStorage
 const removeAuthToken = () => {
   sessionStorage.removeItem('todo_auth_token');
+  sessionStorage.removeItem('todo_refresh_token');
 };
 
-// API request helper with authentication
-const apiRequest = async (endpoint, options = {}) => {
+// Refresh token function
+const refreshAccessToken = async () => {
+  const refreshToken = getRefreshToken();
+  if (!refreshToken) {
+    throw new Error('No refresh token available');
+  }
+
+  try {
+    const response = await fetch(`${API_BASE_URL}/auth/refresh`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ refresh_token: refreshToken }),
+    });
+
+    if (!response.ok) {
+      throw new Error('Token refresh failed');
+    }
+
+    const data = await response.json();
+    setAuthToken(data.access_token);
+    return data.access_token;
+  } catch (error) {
+    removeAuthToken();
+    throw error;
+  }
+};
+
+// API request helper with authentication and auto-refresh
+const apiRequest = async (endpoint, options = {}, retryCount = 0) => {
   const url = `${API_BASE_URL}${endpoint}`;
   const token = getAuthToken();
+  
+  console.log(`API Request to ${endpoint}:`, {
+    hasToken: !!token,
+    retryCount,
+    tokenStart: token ? token.substring(0, 20) + '...' : 'none'
+  });
   
   const config = {
     headers: {
@@ -37,10 +83,23 @@ const apiRequest = async (endpoint, options = {}) => {
   try {
     const response = await fetch(url, config);
     
-    // Handle authentication errors
-    if (response.status === 401) {
+    // Handle authentication errors with token refresh
+    if (response.status === 401 && retryCount === 0) {
+      try {
+        // Try to refresh the token
+        await refreshAccessToken();
+        // Retry the request with the new token
+        return await apiRequest(endpoint, options, 1);
+      } catch (refreshError) {
+        removeAuthToken();
+        throw new Error('Authentication failed. Please login again.');
+      }
+    }
+    
+    // Handle forbidden errors (403)
+    if (response.status === 403) {
       removeAuthToken();
-      throw new Error('Authentication failed. Please login again.');
+      throw new Error('Not authenticated');
     }
     
     if (!response.ok) {
@@ -67,6 +126,12 @@ export const authAPI = {
       method: 'POST',
       body: JSON.stringify({ email, password }),
     });
+    
+    if (response.access_token && response.refresh_token) {
+      setAuthToken(response.access_token);
+      setRefreshToken(response.refresh_token);
+    }
+    
     return response;
   },
   
@@ -76,8 +141,9 @@ export const authAPI = {
       body: JSON.stringify({ email, password }),
     });
     
-    if (response.access_token) {
+    if (response.access_token && response.refresh_token) {
       setAuthToken(response.access_token);
+      setRefreshToken(response.refresh_token);
     }
     
     return response;
