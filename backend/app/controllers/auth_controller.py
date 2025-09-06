@@ -1,16 +1,16 @@
 from datetime import datetime, timedelta
 from fastapi import HTTPException, status
 from app.utils.database import get_database
-from app.utils.auth import get_password_hash, verify_password, create_access_token
-from app.models.user import UserCreate, UserLogin, User, UserResponse, Token
+from app.utils.auth import get_password_hash, verify_password, create_access_token, create_refresh_token, verify_refresh_token
+from app.models.user import UserCreate, UserLogin, User, UserResponse, Token, TokenWithRefresh, RefreshTokenRequest
 from fastapi import HTTPException
 from fastapi.responses import JSONResponse
 
 class AuthController:
     
     @staticmethod
-    async def register_user(user_data: UserCreate) -> UserResponse:
-        """Register a new user"""
+    async def register_user(user_data: UserCreate) -> TokenWithRefresh:
+        """Register a new user and return JWT tokens"""
         try:
             db = await get_database()
             
@@ -41,11 +41,18 @@ class AuthController:
             # Insert user into database
             result = await db.users.insert_one(user_doc)
             
-            # Return user response
-            return UserResponse(
-                id=str(result.inserted_id),
-                email=user_data.email,
-                created_at=user_doc["created_at"]
+            # Create access and refresh tokens for the new user
+            access_token_expires = timedelta(minutes=30)
+            access_token = create_access_token(
+                data={"sub": user_data.email}, 
+                expires_delta=access_token_expires
+            )
+            refresh_token = create_refresh_token(data={"sub": user_data.email})
+            
+            return TokenWithRefresh(
+                access_token=access_token, 
+                refresh_token=refresh_token,
+                token_type="bearer"
             )
         except HTTPException as e:
             raise e
@@ -56,8 +63,8 @@ class AuthController:
             )
     
     @staticmethod
-    async def login_user(user_data: UserLogin) -> Token:
-        """Authenticate user and return JWT token"""
+    async def login_user(user_data: UserLogin) -> TokenWithRefresh:
+        """Authenticate user and return JWT tokens"""
         try:
             db = await get_database()
             
@@ -82,10 +89,54 @@ class AuthController:
                     detail="Incorrect email or password"
                 )
             
-            # Create access token
+            # Create access and refresh tokens
             access_token_expires = timedelta(minutes=30)
             access_token = create_access_token(
                 data={"sub": user_data.email}, 
+                expires_delta=access_token_expires
+            )
+            refresh_token = create_refresh_token(data={"sub": user_data.email})
+            
+            return TokenWithRefresh(
+                access_token=access_token, 
+                refresh_token=refresh_token,
+                token_type="bearer"
+            )
+        except HTTPException as e:
+            raise e
+        except Exception as e:
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail=f"Login failed: {str(e)}"
+            )
+    
+    @staticmethod
+    async def refresh_access_token(refresh_token_data: RefreshTokenRequest) -> Token:
+        """Refresh access token using refresh token"""
+        try:
+            # Verify refresh token
+            token_data = verify_refresh_token(refresh_token_data.refresh_token)
+            email = token_data["email"]
+            
+            # Check if user still exists
+            db = await get_database()
+            if db is None:
+                raise HTTPException(
+                    status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                    detail="Database connection not available"
+                )
+            
+            user_doc = await db.users.find_one({"email": email})
+            if not user_doc:
+                raise HTTPException(
+                    status_code=status.HTTP_401_UNAUTHORIZED,
+                    detail="User not found"
+                )
+            
+            # Create new access token
+            access_token_expires = timedelta(minutes=30)
+            access_token = create_access_token(
+                data={"sub": email}, 
                 expires_delta=access_token_expires
             )
             
@@ -94,8 +145,8 @@ class AuthController:
             raise e
         except Exception as e:
             raise HTTPException(
-                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-                detail=f"Login failed: {str(e)}"
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail=f"Token refresh failed: {str(e)}"
             )
     
     @staticmethod

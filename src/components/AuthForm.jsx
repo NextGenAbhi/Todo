@@ -73,7 +73,10 @@ const AuthForm = ({ onAuthSuccess }) => {
       }
 
       if (success) {
-        onAuthSuccess();
+        // Add a small delay to ensure tokens are properly set
+        setTimeout(() => {
+          onAuthSuccess();
+        }, 200);
       }
     } catch (error) {
       console.error('Authentication error:', error);
