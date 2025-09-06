@@ -202,7 +202,7 @@ const AuthForm = ({ onAuthSuccess }) => {
         </div>
 
         <div className="security-notice">
-          <p>🔒 Your data is encrypted and stored locally on your device for maximum privacy.</p>
+          <p>Organize your tasks and boost productivity with this simple todo app.</p>
         </div>
       </div>
     </div>
